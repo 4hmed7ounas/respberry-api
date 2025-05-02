@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 import os
 import wave
@@ -46,14 +45,21 @@ audio = pyaudio.PyAudio()
 recognizer = sr.Recognizer()
 
 # Initialize text-to-speech engine
-engine = pyttsx3.init()
-
-# Set up a male voice if available
-voices = engine.getProperty('voices')
-for voice in voices:
-    if "male" in voice.name.lower():
-        engine.setProperty('voice', voice.id)
-        break
+try:
+    engine = pyttsx3.init()
+    
+    # Set up a male voice if available
+    voices = engine.getProperty('voices')
+    for voice in voices:
+        if "male" in voice.name.lower():
+            engine.setProperty('voice', voice.id)
+            break
+    tts_available = True
+except Exception as e:
+    print(f"Warning: Could not initialize pyttsx3: {e}")
+    print("Text-to-speech will use alternative methods")
+    engine = None
+    tts_available = False
 
 # Routes
 @app.route('/')
@@ -253,11 +259,20 @@ def speak_text(text):
     try:
         if use_server_tts:
             server_side_tts(text)
-        else:
+        elif tts_available and engine:
             engine.say(text)
             engine.runAndWait()
+        else:
+            # Fallback to command-line espeak if pyttsx3 is not available
+            try:
+                import subprocess
+                subprocess.run(['espeak', text])
+            except Exception as e:
+                print(f"Error using espeak command line: {e}")
+                print(f"Text (not spoken): {text}")
     except Exception as e:
         print(f"Error in text-to-speech: {e}")
+        print(f"Text (not spoken): {text}")
     finally:
         is_speaking = False
 

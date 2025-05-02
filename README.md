@@ -39,10 +39,11 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-4. Install system dependencies for PyAudio:
+4. Install system dependencies for PyAudio and text-to-speech:
 ```bash
 sudo apt-get update
 sudo apt-get install portaudio19-dev python3-pyaudio
+sudo apt-get install espeak espeak-data libespeak-dev
 ```
 
 ## Configuration
