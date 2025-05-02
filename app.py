@@ -285,28 +285,15 @@ def server_side_tts(text):
         )
         
         if response.status_code == 200:
-            # Check if the response is actually audio data
-            content_type = response.headers.get('Content-Type', '')
+            # Save the audio to a file
+            with open("tts_output.wav", "wb") as f:
+                f.write(response.content)
             
-            if 'audio' in content_type or len(response.content) > 1000:
-                # Save the audio to a file
-                with open("tts_output.wav", "wb") as f:
-                    f.write(response.content)
-                
-                # Play the audio
-                play_audio("tts_output.wav")
-            else:
-                # Response is not audio, use espeak instead
-                print(f"Server returned non-audio response: {response.text[:100]}...")
-                try:
-                    import subprocess
-                    subprocess.run(['espeak', text])
-                except Exception as e:
-                    print(f"Error using espeak command line: {e}")
-                    print(f"Text (not spoken): {text}")
+            # Play the audio using system command
+            play_audio_file("tts_output.wav")
         else:
             print(f"Server error: {response.status_code}")
-            # Fallback to local TTS
+            # Fallback to espeak
             try:
                 import subprocess
                 subprocess.run(['espeak', text])
@@ -316,7 +303,7 @@ def server_side_tts(text):
     
     except Exception as e:
         print(f"Error in server-side TTS: {e}")
-        # Fallback to local TTS
+        # Fallback to espeak
         try:
             import subprocess
             subprocess.run(['espeak', text])
@@ -324,61 +311,22 @@ def server_side_tts(text):
             print(f"Error using espeak command line: {e}")
             print(f"Text (not spoken): {text}")
 
-def play_audio(file_path):
-    """Play an audio file"""
+def play_audio_file(file_path):
+    """Play an audio file using system command"""
     try:
-        # Check if file exists and is valid
-        if not os.path.exists(file_path):
-            print(f"Audio file does not exist: {file_path}")
-            return
-            
-        # Check if file is a valid WAV file
-        try:
-            with wave.open(file_path, 'rb') as wf:
-                # File is valid, proceed
-                pass
-        except Exception as e:
-            print(f"Error playing audio: {e}")
-            print("Falling back to espeak")
-            # Get the last message from chat memory
-            if chat_memory and chat_memory[-1]['role'] == 'WRAITH':
-                try:
-                    import subprocess
-                    subprocess.run(['espeak', chat_memory[-1]['text']])
-                except Exception as e:
-                    print(f"Error using espeak command line: {e}")
-            return
-            
-        # Open the audio file
-        wf = wave.open(file_path, 'rb')
-        
-        # Open a stream
-        stream = audio.open(format=audio.get_format_from_width(wf.getsampwidth()),
-                            channels=wf.getnchannels(),
-                            rate=wf.getframerate(),
-                            output=True)
-        
-        # Read data in chunks
-        data = wf.readframes(CHUNK)
-        
-        # Play the audio
-        while data:
-            stream.write(data)
-            data = wf.readframes(CHUNK)
-        
-        # Close everything
-        stream.stop_stream()
-        stream.close()
-    
+        import subprocess
+        # Use aplay which is standard on Raspberry Pi
+        subprocess.run(['aplay', file_path])
     except Exception as e:
-        print(f"Error playing audio: {e}")
-        # Try to use espeak as fallback
-        if chat_memory and chat_memory[-1]['role'] == 'WRAITH':
+        print(f"Error playing audio with aplay: {e}")
+        # Try alternative players
+        try:
+            subprocess.run(['mpg123', file_path])
+        except Exception:
             try:
-                import subprocess
-                subprocess.run(['espeak', chat_memory[-1]['text']])
-            except Exception as e2:
-                print(f"Error using espeak fallback: {e2}")
+                subprocess.run(['mplayer', file_path])
+            except Exception:
+                print("Could not play audio with any available player")
 
 def main():
     """Main function to run the assistant from command line"""
