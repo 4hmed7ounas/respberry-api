@@ -1,94 +1,167 @@
-# WRAITH Voice Assistant for Raspberry Pi
+# WRAITH Voice Assistant for Raspberry Pi 5
 
-A voice-controlled assistant designed for Raspberry Pi 5 that provides navigation, guidance, and transportation assistance.
+A voice assistant implementation for Raspberry Pi 5 that uses a USB microphone for input and USB speakers for output. This project is based on the WRAITH assistant concept and connects to a remote API for speech-to-text and text-to-speech processing.
 
-## Hardware Requirements
+## Features
 
-- Raspberry Pi 5 (or compatible)
+- Voice input via USB microphone
+- Voice output via USB speakers
+- Web interface for interaction
+- Command-line interface for headless operation
+- Chat memory to maintain conversation context
+- Theme toggle (light/dark mode)
+- Responsive design
+
+## Requirements
+
+- Raspberry Pi 5 (4GB RAM)
 - USB Microphone
-- Speaker (USB or 3.5mm audio jack)
-- LED connected to GPIO pin (optional for visual feedback)
+- USB Speakers
+- Python 3.7+
+- Internet connection (for API access)
 
-## GPIO Connection Setup
+## Installation on Raspberry Pi 5
 
-- LED: GPIO 4 (optional for visual feedback)
-
-## Installation
-
-1. Clone this repository:
-```
-git clone <your-repository-url>
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/respberry.git
 cd respberry
 ```
 
-2. Install required dependencies:
+2. Create and activate a virtual environment:
+```bash
+python3 -m venv venv
+source venv/bin/activate
 ```
+
+3. Install the required packages:
+```bash
 pip install -r requirements.txt
 ```
 
-3. On Raspberry Pi, you may need to install some additional system dependencies for audio:
-```
+4. Install system dependencies for PyAudio:
+```bash
 sudo apt-get update
-sudo apt-get install -y portaudio19-dev python3-pyaudio
+sudo apt-get install portaudio19-dev python3-pyaudio
+```
+
+## Configuration
+
+You can configure the API endpoint by creating a `.env` file in the project root:
+
+```
+API_BASE_URL=https://wraith-assistant.fly.dev
 ```
 
 ## Usage
 
-### Running the Assistant
+### Command Line Interface
 
-```
+Run the assistant in command-line mode:
+
+```bash
 python app.py
 ```
 
-The assistant will automatically:
-1. Initialize with a welcome message
-2. Begin listening for voice input
-3. Process voice commands when detected
-4. Respond with voice output
+This will start the voice assistant in the terminal. Speak when prompted and say "exit" or "quit" to end the session.
 
-### Voice Interaction
+### Web Interface
 
-The assistant continuously listens for voice input:
-1. When you speak, it will detect your voice
-2. When you pause, it will process your command
-3. It will respond via voice and continue listening
+Run the assistant as a web application:
 
-The LED will provide visual feedback:
-- Dim light when actively listening
-- Brief flash when speech is detected
-- Medium brightness when processing
-- Pulsing when speaking
-- Returns to dim when ready for next input
+```bash
+python app.py --web
+```
 
-### Control Keys
+Then open a browser and navigate to `http://localhost:5000` or `http://[raspberry-pi-ip]:5000` from another device on the same network.
 
-- Press Ctrl+C to exit the application
+## Raspberry Pi Setup Tips
 
-## Features
+### Audio Configuration
 
-- Continuous voice detection and processing
-- Voice recognition using Google Speech Recognition
-- Text-to-speech output
-- LED visual feedback
-- Sound effects for different actions
-- Conversation memory
-- Integration with the WRAITH Assistant API
+1. List available audio devices:
+```bash
+aplay -l  # List playback devices
+arecord -l  # List recording devices
+```
+
+2. Set default audio devices by creating/editing `/etc/asound.conf`:
+```
+pcm.!default {
+  type asym
+  playback.pcm {
+    type plug
+    slave.pcm "hw:0,0"  # Replace with your USB speaker device
+  }
+  capture.pcm {
+    type plug
+    slave.pcm "hw:1,0"  # Replace with your USB microphone device
+  }
+}
+```
+
+
+defaults.pcm.card 2
+defaults.pcm.device 0
+defaults.ctl.card 2
+
+3. Test audio recording:
+```bash
+arecord -d 5 -f cd test.wav  # Record 5 seconds
+aplay test.wav  # Play back recording
+```
+
+### Autostart on Boot
+
+To make the voice assistant start automatically on boot:
+
+1. Create a systemd service file:
+```bash
+sudo nano /etc/systemd/system/wraith.service
+```
+
+2. Add the following content:
+```
+[Unit]
+Description=WRAITH Voice Assistant
+After=network.target
+
+[Service]
+ExecStart=/home/pi/respberry/venv/bin/python /home/pi/respberry/app.py
+WorkingDirectory=/home/pi/respberry
+StandardOutput=inherit
+StandardError=inherit
+Restart=always
+User=pi
+
+[Install]
+WantedBy=multi-user.target
+```
+
+3. Enable and start the service:
+```bash
+sudo systemctl enable wraith.service
+sudo systemctl start wraith.service
+```
 
 ## Troubleshooting
 
-- If you have issues with audio input/output, check your device configuration:
-  ```
-  arecord -l  # List recording devices
-  aplay -l    # List playback devices
-  ```
+### Microphone Issues
 
-- Adjust the microphone sensitivity in the code if needed (see `energy_threshold` parameter in the `VoiceAssistant` class)
+If the microphone isn't working:
+- Check if the microphone is properly connected
+- Verify it's recognized with `arecord -l`
+- Test recording with `arecord -d 5 test.wav`
+- Adjust microphone volume with `alsamixer`
 
-- For permission issues with GPIO pins, make sure to run the script with sudo:
-  ```
-  sudo python app.py
-  ```
+### Speaker Issues
+
+If the speakers aren't working:
+- Check if speakers are properly connected
+- Verify they're recognized with `aplay -l`
+- Test playback with `aplay /usr/share/sounds/alsa/Front_Center.wav`
+- Adjust volume with `alsamixer`
 
 ## License
 
-[Your License Information] 
+MIT
