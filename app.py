@@ -285,26 +285,70 @@ def server_side_tts(text):
         )
         
         if response.status_code == 200:
-            # Save the audio to a file
-            with open("tts_output.wav", "wb") as f:
-                f.write(response.content)
+            # Check if the response is actually audio data
+            content_type = response.headers.get('Content-Type', '')
             
-            # Play the audio
-            play_audio("tts_output.wav")
+            if 'audio' in content_type or len(response.content) > 1000:
+                # Save the audio to a file
+                with open("tts_output.wav", "wb") as f:
+                    f.write(response.content)
+                
+                # Play the audio
+                play_audio("tts_output.wav")
+            else:
+                # Response is not audio, use espeak instead
+                print(f"Server returned non-audio response: {response.text[:100]}...")
+                try:
+                    import subprocess
+                    subprocess.run(['espeak', text])
+                except Exception as e:
+                    print(f"Error using espeak command line: {e}")
+                    print(f"Text (not spoken): {text}")
         else:
+            print(f"Server error: {response.status_code}")
             # Fallback to local TTS
-            engine.say(text)
-            engine.runAndWait()
+            try:
+                import subprocess
+                subprocess.run(['espeak', text])
+            except Exception as e:
+                print(f"Error using espeak command line: {e}")
+                print(f"Text (not spoken): {text}")
     
     except Exception as e:
         print(f"Error in server-side TTS: {e}")
         # Fallback to local TTS
-        engine.say(text)
-        engine.runAndWait()
+        try:
+            import subprocess
+            subprocess.run(['espeak', text])
+        except Exception as e:
+            print(f"Error using espeak command line: {e}")
+            print(f"Text (not spoken): {text}")
 
 def play_audio(file_path):
     """Play an audio file"""
     try:
+        # Check if file exists and is valid
+        if not os.path.exists(file_path):
+            print(f"Audio file does not exist: {file_path}")
+            return
+            
+        # Check if file is a valid WAV file
+        try:
+            with wave.open(file_path, 'rb') as wf:
+                # File is valid, proceed
+                pass
+        except Exception as e:
+            print(f"Error playing audio: {e}")
+            print("Falling back to espeak")
+            # Get the last message from chat memory
+            if chat_memory and chat_memory[-1]['role'] == 'WRAITH':
+                try:
+                    import subprocess
+                    subprocess.run(['espeak', chat_memory[-1]['text']])
+                except Exception as e:
+                    print(f"Error using espeak command line: {e}")
+            return
+            
         # Open the audio file
         wf = wave.open(file_path, 'rb')
         
@@ -328,6 +372,13 @@ def play_audio(file_path):
     
     except Exception as e:
         print(f"Error playing audio: {e}")
+        # Try to use espeak as fallback
+        if chat_memory and chat_memory[-1]['role'] == 'WRAITH':
+            try:
+                import subprocess
+                subprocess.run(['espeak', chat_memory[-1]['text']])
+            except Exception as e2:
+                print(f"Error using espeak fallback: {e2}")
 
 def main():
     """Main function to run the assistant from command line"""
